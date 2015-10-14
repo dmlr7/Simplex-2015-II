@@ -1,41 +1,49 @@
 import sys
 class Simplex:
-  def lines(fp):
-    print str(len(fp.readlines()))
+  def __init__(self,argv):
 
-  def toint(arr): # convert a string array to int array
-    if type(arr) is str :
-        return map(int, arr.split())
-    return map(int, arr)
-
-  def tofloat(arr): # convert a string array to int array
-    if type(arr) is str :
-        return map(float, arr.split())
-    return map(float, arr)
-
-  def main():
-    with open(sys.argv[1]) as f :
+    with open(argv[2]) as f:
+        self.out = f.read().splitlines()
+        for i in self.out[:3]:
+            print type(i)
+            #i=map(float,i)
+    with open(argv[1]) as f:
         lines = f.readlines()
+        print(lines)
 
-    (m,n)   = toint(lines[0].split())
-    bidx    = toint(lines[1].split()) #variables basicas
-    sidx    = toint(lines[2].split()) #variables no basicas
-    b       = tofloat(lines[3].split()) #valores solos
-    A       = map(tofloat, lines[4:4+len(bidx)])
-    obj     = tofloat(lines[4+len(bidx)]) 
+    (m,n)   = self.toint(lines[0])
+    bidx    = self.toint(lines[1].split()) #variables basicas
+    sidx    = self.toint(lines[2].split()) #variables no basicas
+    b       = self.tofloat(lines[3].split()) #valores solos
+    A       = map(self.tofloat, lines[4:4+len(bidx)])
+    obj     = self.tofloat(lines[4+len(bidx)]) 
 
     z = {}
     for i in range(len(sidx)) :
         z[sidx[i]] = obj[i+1]
 
 
-    init(bidx,sidx,b,A,obj)
+    self.init(bidx,sidx,b,A,obj,z)
 
     # pivoting
     # print len(lines) , A, m, n, bidx, sidx, b, obj
 
+  def lines(self,fp):
+    print str(len(fp.readlines()))
 
-  def init(bidx,sidx,b,A,obj):
+  def toint(self,arr): # convert a string array to int array
+    if type(arr) is str :
+        return map(int, arr.split())
+    return map(int, arr)
+
+  def tofloat(self,arr): # convert a string array to int array
+    if type(arr) is str :
+        return map(float, arr.split())
+    return map(float, arr)
+
+  
+
+  def init(self,bidx,sidx,b,A,obj,z):
     print(bidx,sidx,b,A,obj)
     if min(b) < 0:
         Ap = []
@@ -46,11 +54,11 @@ class Simplex:
         print "Z:",Z
         print Ap
         sidx.append(0)
-        pivote(bidx,sidx,b,Ap,obj,Z)
+        self.pivote(bidx,sidx,b,Ap,obj,Z)
     else:
-        opti()
+        self.opti(bidx,sidx,b,A,obj,z)
 
-  def pivote(bidx,sidx,b,A,obj,z):
+  def pivote(self,bidx,sidx,b,A,obj,z):
     indxMatrizA = -1
     indVarEntra=100
     for i in range(len(sidx)):
@@ -69,21 +77,21 @@ class Simplex:
             else:
                 indVarSale=b[j]/-(A[j][indxMatrizA])
                 indymatrizA=j
-
-
-
     if(indymatrizA >= 0):
         aumento=float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
 
         #print "entra id"
-        print sidx[indxMatrizA]
+        #print sidx[indxMatrizA]
 
         #print "sale id"
-        print bidx[indymatrizA]
+        #print bidx[indymatrizA]
         #print "objetivo"
         number=obj[0] + aumento*z[sidx[indxMatrizA] ]
-        print round(number,4)
-    else: print "UNBOUNDED"
+        return [sidx[indxMatrizA],bidx[indxMatrizA],round(number,4)]
+    else: return "UNBOUNDED"
 
-  def opti():
-    print("OPTIMI")
+  def opti(self,bidx,sidx,b,A,obj,z):
+    s=self.pivote(bidx,sidx,b,A,obj,z)
+    print s[0]
+    print s[1]
+    print s[2]
