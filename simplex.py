@@ -1,15 +1,18 @@
 import sys
+from operator import add
+from operator import sub
 class Simplex:
   def __init__(self,argv):
-
-    with open(argv[2]) as f:
+    """
+    with open(argv[0]) as f:
         self.out = f.read().splitlines()
         for i in self.out[:3]:
             print type(i)
             #i=map(float,i)
+            """
     with open(argv[1]) as f:
         lines = f.readlines()
-        print(lines)
+        #print(lines)
 
     (m,n)   = self.toint(lines[0])
     bidx    = self.toint(lines[1].split()) #variables basicas
@@ -19,7 +22,7 @@ class Simplex:
     obj     = self.tofloat(lines[4+len(bidx)]) 
 
     z = {}
-    for i in range(len(sidx)) :
+    for i in range(len(sidx)):
         z[sidx[i]] = obj[i+1]
 
 
@@ -41,22 +44,207 @@ class Simplex:
         return map(float, arr.split())
     return map(float, arr)
 
-  
+  def printIter(self,bidx,sidx,b,A,obj):
+    for i in range(len(bidx)):
+        print("x"+str(bidx[i])+"|"+str(b[i])+"\t|"+str(A[i])+"|")
+    print("Z |"+str(obj[0])+"\t|"+str(obj[1:])+" |")
+    s = ""
+    for i in range(len(sidx)):
+       s = s+" | x"+str(sidx[i])+" "
+    print("       "+s+"|\n")
 
   def init(self,bidx,sidx,b,A,obj,z):
-    print(bidx,sidx,b,A,obj)
+    #print(bidx,sidx,b,A,obj)
+    self.printIter(bidx,sidx,b,A,obj)
     if min(b) < 0:
         Ap = []
+        objN =[]
         for i in range(0, len(bidx)):
             Ap.append(A[i]+[1])
+        for i in range(0,len(sidx)+1):
+            objN.append(0)
+
         Z = {}
         Z[0] = -1
-        print "Z:",Z
-        print Ap
+        #print "Z:",Z
+        #print Ap
+        b.append(0)
+
         sidx.append(0)
-        self.pivote(bidx,sidx,b,Ap,obj,Z)
+        objN.append(-1)
+        self.printIter(bidx,sidx,b,Ap,objN)
+        bidx,sidx,b,Ap,objN,Z = self.pivoteinit(bidx,sidx,b,Ap,objN,Z)
+        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
+        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
+        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
+        self.pivote(bidx,sidx,b,Ap,objN,Z )
+
+
+
     else:
         self.opti(bidx,sidx,b,A,obj,z)
+
+  def rempla(self,list1,list2,val):
+      for i in range(len(list1)):
+          #print(str(list1[i])+" + "+str(val)+" * "+str(list2[i]))
+          list1[i] = list1[i] + val*list2[i]
+          #print("= "+str(list1[i]))
+      #print("nLista",list1)
+      return list1
+
+  def pivoteinit(self,bidx,sidx,b,A,obj,z):
+    indVarEntra = sidx[len(sidx)-1]
+    indxMatrizA = len(sidx)-1
+    ix = {}
+    indVarSale = 100
+    indymatrizA=-1;
+    for j in range(len(bidx)) :
+        ix[bidx[j]] = A[j][indxMatrizA]
+        if(A[j][indxMatrizA] > 0 and b[j]/(A[j][indxMatrizA]) <= indVarSale):
+            if(b[j]/-(A[j][indxMatrizA]) == indVarSale and bidx[j]<bidx[indymatrizA]):
+                indymatrizA=j
+            else:
+                indVarSale=b[j]/(A[j][indxMatrizA])
+                indymatrizA=j
+    if(indymatrizA >= 0):
+        aumento = float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
+        #print(obj)
+        #print(obj[0],aumento,z[sidx[indxMatrizA]],aumento*z[sidx[indxMatrizA]])
+        print "x"+str(sidx[indxMatrizA])+" and x"+str(bidx[indymatrizA])+"leaves"
+        #print "entra id"
+        #print sidx[indxMatrizA]
+
+        #print "sale id"
+        #print bidx[indymatrizA]
+        #print "objetivo"
+        number = obj[0] + aumento*z[sidx[indxMatrizA]]
+        #print(number)
+        res = [sidx[indxMatrizA],bidx[indymatrizA],round(number,4)]
+    else: return "UNBOUNDED"
+
+    bidx,sidx,b,A,obj,z = self.remplaPiv(bidx,sidx,b,A,obj,z,res)
+    #print(bidx,sidx,b,A,obj,z)
+    return bidx,sidx,b,A,obj,z
+
+  def remplaPiv(self,bidx,sidx,b,Ap,objN,Z,res):
+        #print(bidx,sidx,b,A,obj,z)
+        indSidx = sidx.index(res[0])
+        indBidx = bidx.index(res[1])
+        xC = Ap[indBidx][indSidx]
+        objN[0] = res[2]
+        #print(b)
+        #print("var",xC,"bids",bidx,"ind",indBidx,"res1",res[1])
+        if xC > 0:
+            cam = [n/-xC for n in Ap[bidx.index(res[1])]]
+
+            cam[len(sidx)-1] = cam[len(sidx)-1]*-1
+            sidx[indSidx] = res[1]
+            bidx[indBidx] = res[0]
+
+            for i in range(len(bidx)+1):
+                if i == indBidx:
+                    Ap[i] = cam
+                else:
+                    if i == len(bidx):
+                        val = objN[len(sidx)]
+                        b[i] = res[2]#b[i] + val*b[indSidx]
+                        #print(b[i])
+                        objN[1:] = self.rempla(objN[1:len(sidx)],cam[:len(sidx)-1],val) +[val]
+                    else:
+                        b[i] = b[i] - Ap[i][indSidx]*b[indBidx]
+                        #print(b[i])
+                        Ap[i] = self.rempla(Ap[i][:len(sidx)-1],cam[:len(sidx)-1],Ap[i][indSidx])+[cam[len(sidx)-1]]
+
+            Z = {}
+            for i in range(len(sidx)):
+                Z[sidx[i]] = objN[i+1]
+            #print(b)
+            b[indBidx] = -b[indBidx]
+            #print(b)
+            self.printIter(bidx,sidx,b,Ap,objN)
+            #print(bidx,sidx,b,Ap,objN,Z)
+            return (bidx,sidx,b,Ap,objN,Z)
+        else:
+            #print(bidx,indBidx)
+            #print("ec a des",Ap[indBidx])
+
+            tempA = Ap[indBidx][indSidx]
+            #print("tempA",tempA)
+            Ap[indBidx][indSidx] = -1
+            cam = [n/-xC for n in Ap[bidx.index(res[1])]]
+            #print(cam)
+            #print("ec des",cam,"b",b)
+            #print("x",sidx[indSidx],"b",b)
+            sidx[indSidx] = res[1]
+            bidx[indBidx] = res[0]
+
+            #print("sid",sidx,"bix",bidx)
+            if(indBidx==0):
+                b[indBidx] = -b[indBidx]/tempA
+                #print("ENTRE")
+            #print("baccaaa",b)
+            if (tempA != 1.0 and tempA!= -1.0):
+                #print("ENTREEEEEE")
+                if(tempA>0):
+                    b[indBidx] = b[indBidx]/tempA
+                else:
+                    b[indBidx] = -b[indBidx]/tempA
+            #print("index",Ap[indBidx][indSidx],"b",b[indBidx],b)
+            #print(objN)
+            #print("bacca",b)
+            #b[indBidx] = b[indBidx]/tempA
+            #b[indBidx] = -b[indBidx]
+
+            #print("nue",b[indBidx])
+            for i in range(len(bidx)+1):
+                if i == indBidx:
+                    Ap[i] = cam
+                    #b[i] = b[i]/Ap[indBidx][indSidx]
+
+                else:
+                    if i == len(bidx):
+                        #print("Normal",objN)
+                        val = objN[indSidx+1]
+                        #print("val",val)
+                        #print(b)
+                        #print("resc",res[2],"valor",b[i]+val*b[indBidx])
+                        b[i] = b[i] + val*b[indBidx]
+                        temp = -objN[indSidx+1]
+                        #print("temo",temp,"ind",indSidx,"x",sidx[indSidx])
+                        objN[1] = 0
+                        #print(val)
+                        #print(objN[1:])
+                        #print("sum",cam[:len(sidx)])
+                        #print("norm",objN[1:])
+                        objN[1:] = self.rempla(objN[1:],cam[:len(sidx)],val)
+
+                        #print("aCambio",objN[1:],"in",indSidx)
+
+                        objN[indSidx+1]= cam[indSidx]
+                        objN[1] = objN[1]*val
+                        #print("cambio",objN)
+                        #print("Cambio",objN)"""
+                    else:
+                        val = Ap[i][indSidx]
+                        #print("valNoZ",val)
+                        #print(b[i])
+                        #print(val)
+                        #print(b[indBidx])
+                        b[i] = b[i] + val*b[indBidx]
+                        #print("b["+str(i)+"]="+str(b[i]))
+                        #print(Ap[i],cam)
+                        Ap[i][indSidx] = 0
+                        Ap[i] = self.rempla(Ap[i],cam,val)
+                        #print("res",Ap[i])
+                        #print(cam)
+            #print("bnue",b)
+            self.printIter(bidx,sidx,b,Ap,objN)
+            Z = {}
+            for i in range(len(sidx)):
+                Z[sidx[i]] = objN[i+1]
+            return (bidx,sidx,b,Ap,objN,Z)
+        #return bidx,sidx,Ap,objN,Z
+
 
   def pivote(self,bidx,sidx,b,A,obj,z):
     indxMatrizA = -1
@@ -71,27 +259,29 @@ class Simplex:
     indymatrizA=-1;
     for j in range(len(bidx)) :
         ix[bidx[j]] = A[j][indxMatrizA]
-        if(A[j][indxMatrizA]<0 and b[j]/-(A[j][indxMatrizA]) <= indVarSale):
+        if(A[j][indxMatrizA] < 0 and b[j]/-(A[j][indxMatrizA]) <= indVarSale):
             if(b[j]/-(A[j][indxMatrizA]) == indVarSale and bidx[j]<bidx[indymatrizA]):
                 indymatrizA=j
             else:
                 indVarSale=b[j]/-(A[j][indxMatrizA])
                 indymatrizA=j
     if(indymatrizA >= 0):
-        aumento=float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
+        aumento = float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
 
-        #print "entra id"
+        print "x"+str(sidx[indxMatrizA])+" and x"+str(bidx[indymatrizA])+"leaves"
         #print sidx[indxMatrizA]
 
         #print "sale id"
         #print bidx[indymatrizA]
         #print "objetivo"
-        number=obj[0] + aumento*z[sidx[indxMatrizA] ]
-        return [sidx[indxMatrizA],bidx[indxMatrizA],round(number,4)]
+        number = obj[0] + aumento*z[sidx[indxMatrizA]]
+        res = [sidx[indxMatrizA],bidx[indymatrizA],round(number,4)]
     else: return "UNBOUNDED"
+    bidx,sidx,b,A,obj,z = self.remplaPiv(bidx,sidx,b,A,obj,z,res)
+    return bidx,sidx,b,A,obj,z
 
-  def opti(self,bidx,sidx,b,A,obj,z):
-    s=self.pivote(bidx,sidx,b,A,obj,z)
+  def opti(self, bidx, sidx, b, A, obj, z):
+    s = self.pivote(bidx,sidx,b,A,obj,z)
     print s[0]
     print s[1]
     print s[2]
