@@ -74,10 +74,46 @@ class Simplex:
         objN.append(-1)
         self.printIter(bidx,sidx,b,Ap,objN)
         bidx,sidx,b,Ap,objN,Z = self.pivoteinit(bidx,sidx,b,Ap,objN,Z)
-        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
+        i = 0
+        while True:
+            #if(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1):
+             #break
+            res = self.pivote(bidx,sidx,b,Ap,objN,Z )
+            #print(res,i)
+            #print(b[len(b)-1] == 0,objN[sidx.index(0)+1] == -1)
+            if res == "UNBOUNDED":
+                #print "No se puede inicializar"
+                break
+
+            if(0 in sidx):
+                if(objN[0] == 0 and objN[sidx.index(0)+1] == -1):
+                    break
+
+            bidx = res[0]
+            sidx = res[1]
+            b = res[2]
+            Ap = res[3]
+            objN = res[4]
+            Z = res[5]
+            i = i +1
+
+
+
+        if(objN[0] == 0 and objN[sidx.index(0)+1] == -1):
+            print("Dicionario factible")
+        else:
+            print("Diccionario no factible")
+
+        """
+        bidx,sidx,b,Ap,objN,Z = self.pivoteinit(bidx,sidx,b,Ap,objN,Z)
         bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
         bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
         self.pivote(bidx,sidx,b,Ap,objN,Z )
+
+        print(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1)
+        #self.pivote(bidx,sidx,b,Ap,objN,Z )
+        """
+
 
 
 
@@ -147,7 +183,8 @@ class Simplex:
                 else:
                     if i == len(bidx):
                         val = objN[len(sidx)]
-                        b[i] = res[2]#b[i] + val*b[indSidx]
+
+                        b[i] = b[i] + val*b[indBidx]
                         #print(b[i])
                         objN[1:] = self.rempla(objN[1:len(sidx)],cam[:len(sidx)-1],val) +[val]
                     else:
@@ -169,6 +206,7 @@ class Simplex:
             #print("ec a des",Ap[indBidx])
 
             tempA = Ap[indBidx][indSidx]
+            temmpZ = objN[1]
             #print("tempA",tempA)
             Ap[indBidx][indSidx] = -1
             cam = [n/-xC for n in Ap[bidx.index(res[1])]]
@@ -179,8 +217,8 @@ class Simplex:
             bidx[indBidx] = res[0]
 
             #print("sid",sidx,"bix",bidx)
-            if(indBidx==0):
-                b[indBidx] = -b[indBidx]/tempA
+            #if(indBidx==0):
+                #b[indBidx] = -b[indBidx]/tempA
                 #print("ENTRE")
             #print("baccaaa",b)
             if (tempA != 1.0 and tempA!= -1.0):
@@ -205,6 +243,8 @@ class Simplex:
                     if i == len(bidx):
                         #print("Normal",objN)
                         val = objN[indSidx+1]
+                        valx = objN[1]
+
                         #print("val",val)
                         #print(b)
                         #print("resc",res[2],"valor",b[i]+val*b[indBidx])
@@ -220,9 +260,12 @@ class Simplex:
 
                         #print("aCambio",objN[1:],"in",indSidx)
 
-                        objN[indSidx+1]= cam[indSidx]
-                        objN[1] = objN[1]*val
-                        #print("cambio",objN)
+                        objN[indSidx+1]= val*cam[indSidx]
+                        objN[1] = cam[indSidx]
+
+
+
+                        #print("cambio",objN[1:])
                         #print("Cambio",objN)"""
                     else:
                         val = Ap[i][indSidx]
@@ -238,10 +281,21 @@ class Simplex:
                         #print("res",Ap[i])
                         #print(cam)
             #print("bnue",b)
+            if(0 in bidx):
+                objN[1] = -Ap[bidx.index(0)][0]
+
+            if(0 in sidx):
+                if(objN[0] == 0 and sidx.index(0)+1 != 1):
+                    objN[1] = 0
+                else:
+                    if(objN[0] == 0 and sidx.index(0)+1 == 1):
+                        objN[1] = -1
             self.printIter(bidx,sidx,b,Ap,objN)
             Z = {}
             for i in range(len(sidx)):
                 Z[sidx[i]] = objN[i+1]
+
+
             return (bidx,sidx,b,Ap,objN,Z)
         #return bidx,sidx,Ap,objN,Z
 
@@ -250,22 +304,36 @@ class Simplex:
     indxMatrizA = -1
     indVarEntra=100
     for i in range(len(sidx)):
-        if (z[sidx[i]] > 0 and sidx[i] <= indVarEntra ):
+        if (obj[i+1] > 0 and sidx[i] <= indVarEntra ):
             indVarEntra=sidx[i]
             indxMatrizA=i
 
     ix = {}
     indVarSale = 100
-    indymatrizA=-1;
-    for j in range(len(bidx)) :
+    indymatrizA= -1;
+
+    for j in range(len(bidx)):
         ix[bidx[j]] = A[j][indxMatrizA]
-        if(A[j][indxMatrizA] < 0 and b[j]/-(A[j][indxMatrizA]) <= indVarSale):
-            if(b[j]/-(A[j][indxMatrizA]) == indVarSale and bidx[j]<bidx[indymatrizA]):
-                indymatrizA=j
-            else:
-                indVarSale=b[j]/-(A[j][indxMatrizA])
-                indymatrizA=j
-    if(indymatrizA >= 0):
+        if(-A[j][indxMatrizA] != 0):
+            val = float((int(100*b[j])/-(A[j][indxMatrizA]))/100)
+        #print("val",val, indymatrizA,"x"+str(bidx[indymatrizA]))
+        #print("val2",b[j]/-A[j][indxMatrizA])
+        #print("x"+str(bidx[j]),A[j][indxMatrizA])
+        #print("COMM",val <= indVarSale, A[j][indxMatrizA] < 0)
+        if(A[j][indxMatrizA] < 0 and val <= indVarSale):
+
+            #print("INDEX COM1",j,val == indVarSale)
+            #print("INDEX COM2",bidx[j] < bidx[indymatrizA])
+            #print("VALUE nue bidx",bidx[j])
+            #print("VALUE temv",bidx[indymatrizA])
+            if(val == indVarSale and bidx[j] < bidx[indymatrizA]):
+                indymatrizA = j
+            elif(val < indVarSale):
+                indVarSale = val
+                indymatrizA = j
+    #print(indymatrizA)
+    #print(bidx,indymatrizA)
+    if(indymatrizA >= 0 and indxMatrizA >=0):
         aumento = float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
 
         print "x"+str(sidx[indxMatrizA])+" and x"+str(bidx[indymatrizA])+"leaves"
@@ -276,7 +344,8 @@ class Simplex:
         #print "objetivo"
         number = obj[0] + aumento*z[sidx[indxMatrizA]]
         res = [sidx[indxMatrizA],bidx[indymatrizA],round(number,4)]
-    else: return "UNBOUNDED"
+    else:
+        return "UNBOUNDED"
     bidx,sidx,b,A,obj,z = self.remplaPiv(bidx,sidx,b,A,obj,z,res)
     return bidx,sidx,b,A,obj,z
 
