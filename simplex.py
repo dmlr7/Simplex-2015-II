@@ -1,7 +1,10 @@
 import sys
 from operator import add
 from operator import sub
+from operator import mul
+
 class Simplex:
+  LOL = []
   def __init__(self,argv):
     """
     with open(argv[0]) as f:
@@ -21,15 +24,64 @@ class Simplex:
     A       = map(self.tofloat, lines[4:4+len(bidx)])
     obj     = self.tofloat(lines[4+len(bidx)]) 
 
+    iniciSidx = self.toint(lines[2].split()) #variables no basicas
     z = {}
     for i in range(len(sidx)):
         z[sidx[i]] = obj[i+1]
 
 
-    self.init(bidx,sidx,b,A,obj,z)
 
-    # pivoting
-    # print len(lines) , A, m, n, bidx, sidx, b, obj
+    res = self.init(bidx,sidx,b,A,obj,z)
+    if res != "NOFACT":
+        bidx = res[0]
+        sidx = res[1]
+        b = res[2]
+        Ap = res[3]
+        objN = res[4]
+        Z = res[5]
+        for i in Ap:
+            i.remove(i[sidx.index(0)])
+        objN.remove(objN[sidx.index(0)])
+        sidx.remove(0)
+    else:
+        return
+
+    objRem = objN
+
+    e = {}
+    if res != "NOFACT":
+        e =self.calcularZ(bidx,sidx,b,Ap,obj,objN,z)
+
+    self.printIter(bidx,sidx,b,Ap,objN)
+
+    self.opti(bidx,sidx,b,Ap,objN,e)
+
+  def calcularZ (self,bidx,sidx,b,Ap,obj,objN,z):
+    e={}
+    for i in sidx:
+        e[i]=0
+        for o in z:
+            if(o==i):
+                e[i] = z[o]
+        valorz = obj[0]
+
+    for i in z:
+        for o in bidx:
+            if(o==i):
+                indice1=bidx.index(o)
+                factor=z[o]
+                valorz+=b[indice1]*factor
+
+                for u in sidx:
+                    e[u]+=Ap[indice1][sidx.index(u)]*factor
+
+    for i in e.keys():
+        objN[sidx.index(i)+1] = e[i]
+
+    objN[0] = valorz
+    b[len(b)-1] = valorz
+    return e
+
 
   def lines(self,fp):
     print str(len(fp.readlines()))
@@ -59,6 +111,8 @@ class Simplex:
     if min(b) < 0:
         Ap = []
         objN =[]
+        objRempl = obj
+
         for i in range(0, len(bidx)):
             Ap.append(A[i]+[1])
         for i in range(0,len(sidx)+1):
@@ -73,17 +127,21 @@ class Simplex:
         sidx.append(0)
         objN.append(-1)
         self.printIter(bidx,sidx,b,Ap,objN)
-        bidx,sidx,b,Ap,objN,Z = self.pivoteinit(bidx,sidx,b,Ap,objN,Z)
+        bidx,sidx,b,Ap,objN,Z = self.pivoteInicializacion(bidx,sidx,b,Ap,objN,Z)
         i = 0
+
         while True:
             #if(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1):
              #break
+
             res = self.pivote(bidx,sidx,b,Ap,objN,Z )
+
             #print(res,i)
             #print(b[len(b)-1] == 0,objN[sidx.index(0)+1] == -1)
             if res == "UNBOUNDED":
                 #print "No se puede inicializar"
                 break
+
 
             if(0 in sidx):
                 if(objN[0] == 0 and objN[sidx.index(0)+1] == -1):
@@ -99,28 +157,29 @@ class Simplex:
 
 
 
+
         if(objN[0] == 0 and objN[sidx.index(0)+1] == -1):
             print("Dicionario factible")
+            return bidx,sidx,b,Ap,objN,Z
         else:
             print("Diccionario no factible")
-
-        """
-        bidx,sidx,b,Ap,objN,Z = self.pivoteinit(bidx,sidx,b,Ap,objN,Z)
-        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
-        bidx,sidx,b,Ap,objN,Z =self.pivote(bidx,sidx,b,Ap,objN,Z )
-        self.pivote(bidx,sidx,b,Ap,objN,Z )
-
-        print(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1)
-        #self.pivote(bidx,sidx,b,Ap,objN,Z )
-        """
-
-
-
-
+            return "NOFACT"
     else:
-        self.opti(bidx,sidx,b,A,obj,z)
 
-  def rempla(self,list1,list2,val):
+        while True:
+            #if(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1):
+             #break
+
+            res = self.pivote(bidx,sidx,b,A,obj,z)
+
+            #print(res,i)
+            #print(b[len(b)-1] == 0,objN[sidx.index(0)+1] == -1)
+            if res == "UNBOUNDED":
+                #print "No se puede inicializar"
+                break
+    return "NOFACT"
+
+  def operarEcuaciones(self,list1,list2,val):
       for i in range(len(list1)):
           #print(str(list1[i])+" + "+str(val)+" * "+str(list2[i]))
           list1[i] = list1[i] + val*list2[i]
@@ -128,20 +187,35 @@ class Simplex:
       #print("nLista",list1)
       return list1
 
-  def pivoteinit(self,bidx,sidx,b,A,obj,z):
+  def pivoteInicializacion(self,bidx,sidx,b,A,obj,z):
     indVarEntra = sidx[len(sidx)-1]
     indxMatrizA = len(sidx)-1
     ix = {}
     indVarSale = 100
     indymatrizA=-1;
-    for j in range(len(bidx)) :
+
+
+
+    for j in range(len(bidx)):
         ix[bidx[j]] = A[j][indxMatrizA]
-        if(A[j][indxMatrizA] > 0 and b[j]/(A[j][indxMatrizA]) <= indVarSale):
-            if(b[j]/-(A[j][indxMatrizA]) == indVarSale and bidx[j]<bidx[indymatrizA]):
-                indymatrizA=j
-            else:
-                indVarSale=b[j]/(A[j][indxMatrizA])
-                indymatrizA=j
+        if(-A[j][indxMatrizA] != 0):
+            val = float((int(100*b[j])/(A[j][indxMatrizA]))/100)
+        #print("val",val, indymatrizA,"x"+str(bidx[indymatrizA]))
+        #print("val2",b[j]/-A[j][indxMatrizA])
+        #print("x"+str(bidx[j]),A[j][indxMatrizA])
+        #print("COMM",val <= indVarSale, A[j][indxMatrizA] < 0)
+        if(A[j][indxMatrizA] > 0 and val <= indVarSale):
+
+            #print("INDEX COM1",j,val == indVarSale)
+            #print("INDEX COM2",bidx[j] < bidx[indymatrizA])
+            #print("VALUE nue bidx",bidx[j])
+            #print("VALUE temv",bidx[indymatrizA])
+            if(val == indVarSale and bidx[j] < bidx[indymatrizA]):
+                indymatrizA = j
+            elif(val < indVarSale):
+                indVarSale = val
+                indymatrizA = j
+
     if(indymatrizA >= 0):
         aumento = float(b[indymatrizA]/-A[indymatrizA][indxMatrizA])
         #print(obj)
@@ -186,11 +260,11 @@ class Simplex:
 
                         b[i] = b[i] + val*b[indBidx]
                         #print(b[i])
-                        objN[1:] = self.rempla(objN[1:len(sidx)],cam[:len(sidx)-1],val) +[val]
+                        objN[1:] = self.operarEcuaciones(objN[1:len(sidx)],cam[:len(sidx)-1],val) +[val]
                     else:
                         b[i] = b[i] - Ap[i][indSidx]*b[indBidx]
                         #print(b[i])
-                        Ap[i] = self.rempla(Ap[i][:len(sidx)-1],cam[:len(sidx)-1],Ap[i][indSidx])+[cam[len(sidx)-1]]
+                        Ap[i] = self.operarEcuaciones(Ap[i][:len(sidx)-1],cam[:len(sidx)-1],Ap[i][indSidx])+[cam[len(sidx)-1]]
 
             Z = {}
             for i in range(len(sidx)):
@@ -240,6 +314,7 @@ class Simplex:
                     #b[i] = b[i]/Ap[indBidx][indSidx]
 
                 else:
+
                     if i == len(bidx):
                         #print("Normal",objN)
                         val = objN[indSidx+1]
@@ -248,6 +323,7 @@ class Simplex:
                         #print("val",val)
                         #print(b)
                         #print("resc",res[2],"valor",b[i]+val*b[indBidx])
+
                         b[i] = b[i] + val*b[indBidx]
                         temp = -objN[indSidx+1]
                         #print("temo",temp,"ind",indSidx,"x",sidx[indSidx])
@@ -256,12 +332,12 @@ class Simplex:
                         #print(objN[1:])
                         #print("sum",cam[:len(sidx)])
                         #print("norm",objN[1:])
-                        objN[1:] = self.rempla(objN[1:],cam[:len(sidx)],val)
+                        objN[1:] = self.operarEcuaciones(objN[1:],cam[:len(sidx)],val)
 
                         #print("aCambio",objN[1:],"in",indSidx)
 
                         objN[indSidx+1]= val*cam[indSidx]
-                        objN[1] = cam[indSidx]
+                        objN[1] = val*cam[indSidx] #POR SI ACASO SE ME OLVIDA
 
 
 
@@ -277,7 +353,7 @@ class Simplex:
                         #print("b["+str(i)+"]="+str(b[i]))
                         #print(Ap[i],cam)
                         Ap[i][indSidx] = 0
-                        Ap[i] = self.rempla(Ap[i],cam,val)
+                        Ap[i] = self.operarEcuaciones(Ap[i],cam,val)
                         #print("res",Ap[i])
                         #print(cam)
             #print("bnue",b)
@@ -304,7 +380,7 @@ class Simplex:
     indxMatrizA = -1
     indVarEntra=100
     for i in range(len(sidx)):
-        if (obj[i+1] > 0 and sidx[i] <= indVarEntra ):
+        if (obj[i+1] > 0 and sidx[i] <= indVarEntra):
             indVarEntra=sidx[i]
             indxMatrizA=i
 
@@ -344,13 +420,36 @@ class Simplex:
         #print "objetivo"
         number = obj[0] + aumento*z[sidx[indxMatrizA]]
         res = [sidx[indxMatrizA],bidx[indymatrizA],round(number,4)]
+
     else:
         return "UNBOUNDED"
     bidx,sidx,b,A,obj,z = self.remplaPiv(bidx,sidx,b,A,obj,z,res)
     return bidx,sidx,b,A,obj,z
 
-  def opti(self, bidx, sidx, b, A, obj, z):
-    s = self.pivote(bidx,sidx,b,A,obj,z)
-    print s[0]
-    print s[1]
-    print s[2]
+
+
+  def opti(self, bidx, sidx, b, Ap, objN, e):
+    while True:
+            #if(b[len(b)-1] == 0 and objN[sidx.index(0)+1] == -1):
+             #break
+
+            res = self.pivote(bidx,sidx,b,Ap,objN,e)
+
+            #print(res,i)
+            #print(b[len(b)-1] == 0,objN[sidx.index(0)+1] == -1)
+            if res == "UNBOUNDED":
+                #print "No se puede inicializar"
+                break
+            else:
+                bidx = res[0]
+                sidx = res[1]
+                b = res[2]
+                Ap = res[3]
+                objN = res[4]
+                Z = res[5]
+    objN[0] = 0
+    for i in sidx:
+        if i in bidx:
+            objN[0] = objN[0] + objN[sidx.index(i)+1] * b[bidx.index(i)]
+            print("L")
+    print(objN)
